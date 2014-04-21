@@ -22,6 +22,10 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+//-----------------PATCH-----------------//
+int signal(int, sighandler_t);
+int sigsend(int, int);
+void alarm(int);
 
 // ulib.c
 int stat(char*, struct stat*);

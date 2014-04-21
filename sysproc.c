@@ -6,52 +6,32 @@
 #include "mmu.h"
 #include "proc.h"
 
-int add_path(char* path){
-  if (lastPath==10){
-    cprintf("could not add path - all paths in use\n");
-    exit();
-  }
-  strncpy(PATH[lastPath], path, strlen(path)+1);
-  cprintf("path added '%s'\n", PATH[lastPath]);
-  lastPath++;
-  return 0;
-}
-
-int
-sys_add_path(void)
-{
-  char *path;
-  if(argstr(0, &path) < 0)
-    return -1;
-  return add_path(path);
-}
-
 //-------------------------PATCH----------------//
 
 
 int
 sys_signal(void){
   
-  int *signum;
-  sighandler_t *handler;
-  if (argptr(0, (void*)&signum, sizeof(signum)) <0) {
+  int signum;
+  sighandler_t handler;
+  if (argint(0, &signum) <0) {
       return -1;
   }
   if (argptr(1, (void*)&handler, sizeof(handler)) <0 ) {
       return -1;
   }
-  return signal(signum, handler);
+  return signal(signum-1, handler);
 
 }
 
 int
 sys_sigsend(void){
-  int* pid,signum;
+  int pid,signum;
   
-  if (argptr(0, (void*)&pid, sizeof(pid)) <0) {
+  if (argint(0, &pid) <0) {
       return -1;
   }
-  if (argptr(1, (void*)&signum, sizeof(signum)) <0 ) {
+  if (argint(1, &signum) <0 ) {
       return -1;
   }
   return sigsend(pid, signum);
@@ -59,12 +39,13 @@ sys_sigsend(void){
 
 int
 sys_alarm(void){
-  int* ticks;
+  int ticks;
   
-  if (argptr(0, (void*)&ticks, sizeof(ticks)) <0) {
+  if (argint(0, &ticks) <0) {
       return -1;
   }
-  return alarm(ticks);
+  alarm(ticks);
+  return 0;
 }
 //-------------------------PATCH----------------//
 

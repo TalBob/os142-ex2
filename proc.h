@@ -1,5 +1,6 @@
 // Segments in proc->gdt.
 #define NSEGS     7
+#define NUMSIG     32
 
 // Per-CPU state
 struct cpu {
@@ -69,7 +70,7 @@ struct proc {
   //-------------------------PATCH----------------//
   uint pending;		       // All currently unhandled (pending) signals..
   sighandler_t handler_map[NUMSIG]; // a struct that holds pointers to handlers(functions)
-  uint ticksLeft;		// number of ticks left
+  int ticksLeft;		// number of ticks left
   //-------------------------PATCH----------------//
 };
 

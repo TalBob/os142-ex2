@@ -27,6 +27,10 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
+void defaultHandler(void){
+  cprintf("A signal was accepted by process %d\n", proc->pid);
+}
+
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -49,7 +53,7 @@ allocproc(void)
 found:
 
  //------------------PATCH-------------//
-  p->ticksLeft = -1;
+
  //------------------PATCH-------------//
 
   p->state = EMBRYO;
@@ -79,8 +83,9 @@ found:
   
   p->pending = 0;
   for(i=0; i < NUMSIG; i++){
-    p->handler_map[i] = defaultHandler;
+    p->handler_map[i] = 0;
   }
+  p->ticksLeft = -1;
   return p;
 }
 
@@ -158,7 +163,7 @@ fork(void)
   *np->tf = *proc->tf;
   
   for(i = 0; i < NUMSIG; i++){
-      np->handler_map[i] = handler_map[i];
+      np->handler_map[i] = proc->handler_map[i];
   }
 
   // Clear %eax so that fork returns 0 in the child.
@@ -310,13 +315,26 @@ scheduler(void)
       // before jumping back to us.
       proc = p;
       switchuvm(p);
+      if (p->ticksLeft > 0){
+	p->ticksLeft--;
+      }
+      if (p->ticksLeft == 0){
+	p->pending = p->pending | (1 << 13);
+	p->ticksLeft = -1;
+      }
       while(p->pending > 0){
 	bitFriend = p->pending%2;
 	if (bitFriend){
-	  register_handler(p->handler_map[counter%NUMSIG]);
+	  if(p->handler_map[counter%NUMSIG] == 0){
+	    defaultHandler();
+	  }
+	  else{
+	    register_handler(p->handler_map[counter%NUMSIG]);
+	  }
+
 	}
 	counter++;
-	pending >> pending;
+	p->pending  = p->pending >> 1;
       }
       p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
@@ -501,12 +519,10 @@ procdump(void)
 }
 
 //----------------PATCH-------------------//
-void defaultHandler(void){
-  cprintf("A signal was accepted by process %d", pid);
-}
+
 
 int signal(int signum, sighandler_t handler){
-  handler_map[signum] = handler;
+  proc->handler_map[signum] = handler;
   return 0;
 }
 
@@ -534,23 +550,13 @@ int sigsend(int pid, int signum){
 }
 void alarm(int ticks){
   if (!ticks){
-      ticksLeft = -1;
+      proc->ticksLeft = -1;
   }
   else{
-      ticksLeft = ticks;
+      proc->ticksLeft = ticks;
   }
 
 
-}
-
-void updateProcTicks(){
-  if (ticksLeft > 0){
-    ticksLeft--;
-  }
-  if (ticksLeft == 0){
-    pending = pending | SIGALRM;
-    ticksLeft = -1;
-  }
 }
 
 //----------------PATCH-------------------//
