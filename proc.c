@@ -37,7 +37,8 @@ allocproc(void)
 {
   struct proc *p;
   char *sp;
-
+  int i;
+  
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
@@ -70,7 +71,11 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
+  
+  p->pending = 0;
+  for(i=0; i < NUMSIG; i++){
+    p->handler_map[i] = defaultHandler;
+  }
   return p;
 }
 
@@ -474,4 +479,37 @@ procdump(void)
   }
 }
 
+//----------------PATCH-------------------//
+void defaultHandler(void){
+  cprintf("A signal was accepted by process %d", pid);
+}
+
+int signal(int signum, sighandler_t handler){
+  handler_map[signum] = handler;
+  return 0;
+}
+
+int sigsend(int pid, int signum){
+  
+  struct proc *p;
+  int found;
+  found = 0;
+  
+  acquire(&ptable.lock);
+  for(p = ptable.proc; !found && p < &ptable.proc[NPROC]; p++){
+    if(p->pid == signum){
+      p->pending = p->pending | signum;
+      found = 1;
+    }
+  }
+  release(&ptable.lock);
+  if(!found){
+      return -1;
+  }
+  else{
+    return 0;
+  }
+
+}
+//----------------PATCH-------------------//
 

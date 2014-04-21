@@ -116,6 +116,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+//--------------PATCH----------//
+void		signal(void);
+void 		sigsend(void);
+//--------------PATCH----------//
 
 // swtch.S
 void            swtch(struct context**, struct context*);
