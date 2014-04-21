@@ -56,6 +56,16 @@ sys_sigsend(void){
   }
   return sigsend(pid, signum);
 }
+
+int
+sys_alarm(void){
+  int* ticks;
+  
+  if (argptr(0, (void*)&ticks, sizeof(ticks)) <0) {
+      return -1;
+  }
+  return alarm(ticks);
+}
 //-------------------------PATCH----------------//
 
 int

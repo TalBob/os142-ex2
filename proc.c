@@ -47,6 +47,11 @@ allocproc(void)
   return 0;
 
 found:
+
+ //------------------PATCH-------------//
+  p->ticksLeft = -1;
+ //------------------PATCH-------------//
+
   p->state = EMBRYO;
   p->pid = nextpid++;
   release(&ptable.lock);
@@ -151,6 +156,10 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
+  
+  for(i = 0; i < NUMSIG; i++){
+      np->handler_map[i] = handler_map[i];
+  }
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -281,6 +290,9 @@ void
 scheduler(void)
 {
   struct proc *p;
+  int bitFriend, counter;
+  bitFriend = 0;
+
 
   for(;;){
     // Enable interrupts on this processor.
@@ -289,6 +301,7 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      counter = 0;
       if(p->state != RUNNABLE)
         continue;
 
@@ -297,6 +310,14 @@ scheduler(void)
       // before jumping back to us.
       proc = p;
       switchuvm(p);
+      while(p->pending > 0){
+	bitFriend = p->pending%2;
+	if (bitFriend){
+	  register_handler(p->handler_map[counter%NUMSIG]);
+	}
+	counter++;
+	pending >> pending;
+      }
       p->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
@@ -511,5 +532,26 @@ int sigsend(int pid, int signum){
   }
 
 }
-//----------------PATCH-me-------------------//
+void alarm(int ticks){
+  if (!ticks){
+      ticksLeft = -1;
+  }
+  else{
+      ticksLeft = ticks;
+  }
+
+
+}
+
+void updateProcTicks(){
+  if (ticksLeft > 0){
+    ticksLeft--;
+  }
+  if (ticksLeft == 0){
+    pending = pending | SIGALRM;
+    ticksLeft = -1;
+  }
+}
+
+//----------------PATCH-------------------//
 

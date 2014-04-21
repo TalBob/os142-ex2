@@ -68,7 +68,8 @@ struct proc {
   char name[16];               // Process name (debugging)
   //-------------------------PATCH----------------//
   uint pending;		       // All currently unhandled (pending) signals..
-  sighandler_t handler_map[NUMSIG];
+  sighandler_t handler_map[NUMSIG]; // a struct that holds pointers to handlers(functions)
+  uint ticksLeft;		// number of ticks left
   //-------------------------PATCH----------------//
 };
 

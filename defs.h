@@ -117,8 +117,9 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 //--------------PATCH----------//
-void		signal(void);
-void 		sigsend(void);
+int		signal(void);
+int 		sigsend(void);
+void		alarm(void);
 //--------------PATCH----------//
 
 // swtch.S
