@@ -42,11 +42,10 @@ struct uthread * getNextThread(){
   return u;
   
 }
+
+// this functions puts a thread in the queue
 void putInQueue(struct uthread * ut){
-  if(ut->tid == 0 ){
-    printf(1, "putting %d in queue\n", ut->tid);
-  }
-//   printf(1, "putting %d in queue\n", ut->tid);
+  
     queue[utInIndex % MAX_THREAD] = ut;
     utInIndex++;
 }
@@ -63,19 +62,19 @@ int uthread_init(){
   nextTid++;
   
   utTable.uthreads[0].numOfWaiting = 0;
-  for(i = 0; i < MAX_THREAD; i++){
+  for(i = 0; i < MAX_THREAD; i++){ //initializes waiting field
     utTable.uthreads[0].waiting[i] = 0;
   }
   
-  for(i = 1; i< MAX_THREAD; i++){
+  for(i = 1; i< MAX_THREAD; i++){ //init all the threads in the table to free
     utTable.uthreads[i].state = T_FREE;
   }
   runningThread = &utTable.uthreads[0];
   
-  if(signal(SIGALRM, uthread_yield) == -1){
+  if(signal(SIGALRM, uthread_yield) == -1){  //init the sigalarm to be the yield function
     return -1;
   }
-  alarm(THREAD_QUANTA);
+  alarm(THREAD_QUANTA); 
   return 0;
 }
 
@@ -93,17 +92,13 @@ int uthread_create(void (*start_func)(void *), void*arg){
   
   found:
   u->stack = (char *) malloc(STACK_SIZE);
-//   if((u->stack = (char *) malloc(STACK_SIZE)) == 0) {
-//     return -1;
-//   }
   u->esp = (int)u->stack + STACK_SIZE;        
   u->tid = nextTid++;
   u->numOfWaiting = 0;
   int i;
-  for(i = 0; i < MAX_THREAD; i++){
+  for(i = 0; i < MAX_THREAD; i++){ //init the waiting field
     u->waiting[i] = 0;
   }
-  printf(1,"%d in create\n", u->tid );
   u->esp -= 4;
   *(void **)u->esp = arg;
   u->esp -= 4;
@@ -137,7 +132,7 @@ void uthread_exit(){
   
   struct uthread * thread;
   runningThread->state=T_FREE;
-  if(runningThread->tid != 0){
+  if(runningThread->tid != 0){ // tid 0 does not need to free memory
     free(runningThread->stack); //free memory
   }
 //     wakeup threads that join on me
@@ -145,44 +140,39 @@ void uthread_exit(){
     
     thread = runningThread->waiting[(runningThread->numOfWaiting)-1];
     
-    printf(1,"releasing thread %d\n", thread->tid);
     thread->state = T_RUNNABLE;
     putInQueue(thread);
     runningThread->numOfWaiting--;
   }
-  if((nextThread = getNextThread())==0) {
-//     printf(1,"problem!!\n");
+  if((nextThread = getNextThread())==0) { //no next thread
       exit();
   }
-  printf(1,"%d done exit\n", runningThread->tid);
   conSwitch();
   POPAL();
   alarm(THREAD_QUANTA); 
 
 }
 
-// void uthread_exit(void){
-//   runningThread->state= T_FREE;
-// }
 
-
-
+// return tid of self
 int  uthread_self(void){
   return runningThread->tid;
 }
 
+// function that joins the waitingThread on aThread
 void updateJoined(struct uthread * aThread, struct uthread * waitingThread){
   aThread->waiting[aThread->numOfWaiting] = waitingThread;
   aThread->numOfWaiting++;
-  printf(1,"%d is waiting on %d\n",waitingThread->tid, aThread->tid);
   
 }
 
+// The uthread_join function waits for the thread specified by tid to terminate.
+// If that thread has already terminated, then uthread_join returns immediately.
 int uthread_join(int tid){
   struct uthread *u;
   
   for(u = utTable.uthreads; u < &utTable.uthreads[MAX_THREAD]; u++){
-    if(u->tid == tid){
+    if(u->tid == tid){ //found the thread to join
       goto join_found;
     }
   }
@@ -206,13 +196,9 @@ int uthread_join(int tid){
 void uthread_yield(void)
 {
   alarm(THREAD_QUANTA);  
-  printf(1, "thread %d yields\n", runningThread->tid);
-  if((nextThread = getNextThread()) == 0){
-//     printf(1, "in if\n");
+  if((nextThread = getNextThread()) == 0){ /*case of no next thead*/
     return;
   }
-//   printf(1, "got next thread tid is: %d\n", &nextThread->tid);
-//   printf(1, "got next thread state is: %s\n", &nextThread->state);
   runningThread->state = T_RUNNABLE;
   putInQueue(runningThread);
   
@@ -223,7 +209,7 @@ void uthread_yield(void)
 
 }
 
-////////////////////TODO ASS2.3/////////////////
+
 void initlock(struct semaLock *lk, char *name){
   lk->locked = 0;
   lk->name = name;
@@ -272,14 +258,14 @@ struct uthread * getNextSemaThread(struct binary_semaphore* semaphore){
     semaphore->semaOut++;
   }
   else{
-//     printf(1, "in else\n");
     u = 0;
   }
-//   printf(1, "getting %d in queue\n", u->tid);
   
   return u;
   
 }
+
+//put in semaphore queue
 void putInSemaQueue(struct binary_semaphore* semaphore, struct uthread * ut){
   
   semaphore->semaQueue[semaphore->semaIn % MAX_THREAD] = ut;
@@ -287,9 +273,8 @@ void putInSemaQueue(struct binary_semaphore* semaphore, struct uthread * ut){
 
 }
 
-
+// The functions binary_semaphore_down and binary_semaphore_up work as learned in class.
 void binary_semaphore_down(struct binary_semaphore* semaphore){
-//   printf(1, "in sema down\n");
   acquire(semaphore->lock);
   if(semaphore->value<=0){
     runningThread->state = T_SLEEPING;
@@ -321,10 +306,8 @@ void binary_semaphore_up(struct binary_semaphore* semaphore){
     release(semaphore->lock);
   }
   else{
-//     printf(1, "in sema up\n");
     ut = getNextSemaThread(semaphore);
     ut->state = T_RUNNABLE;
-//     printf(1, "%d is last in queue\n", ut->tid);
     putInQueue(ut);
     release(semaphore->lock);
   }

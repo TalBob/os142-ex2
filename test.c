@@ -6,10 +6,10 @@
  
 void test(void *t){
   int i = 0;
-//      while (i < 50){
+     while (i < 50){
                 printf(1,"thread child %p\n", t);
                 i++;
-//      }
+     }
 }
  
 int main(int argc,char** argv){
