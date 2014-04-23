@@ -103,7 +103,7 @@ int uthread_create(void (*start_func)(void *), void*arg){
   for(i = 0; i < MAX_THREAD; i++){
     u->waiting[i] = 0;
   }
-//   printf(1,"%d in create\n", u->tid );
+  printf(1,"%d in create\n", u->tid );
   u->esp -= 4;
   *(void **)u->esp = arg;
   u->esp -= 4;
@@ -137,8 +137,9 @@ void uthread_exit(){
   
   struct uthread * thread;
   runningThread->state=T_FREE;
-  free(runningThread->stack); //free memory
-  
+  if(runningThread->tid != 0){
+    free(runningThread->stack); //free memory
+  }
 //     wakeup threads that join on me
   while(runningThread->numOfWaiting > 0){
     
@@ -288,6 +289,7 @@ void putInSemaQueue(struct binary_semaphore* semaphore, struct uthread * ut){
 
 
 void binary_semaphore_down(struct binary_semaphore* semaphore){
+//   printf(1, "in sema down\n");
   acquire(semaphore->lock);
   if(semaphore->value<=0){
     runningThread->state = T_SLEEPING;
@@ -319,10 +321,10 @@ void binary_semaphore_up(struct binary_semaphore* semaphore){
     release(semaphore->lock);
   }
   else{
-    printf(1, "in sema up\n");
+//     printf(1, "in sema up\n");
     ut = getNextSemaThread(semaphore);
     ut->state = T_RUNNABLE;
-    printf(1, "%d is last in queue\n", ut->tid);
+//     printf(1, "%d is last in queue\n", ut->tid);
     putInQueue(ut);
     release(semaphore->lock);
   }
