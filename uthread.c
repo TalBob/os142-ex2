@@ -5,6 +5,7 @@
 #include "uthread.h"
 #include "signal.h"
 #include "spinlock.h"
+#include "x86.h"
 
 
 //-----------------PATCH-------------//
@@ -29,7 +30,7 @@ struct uthread * getNextThread(){
   
   if(utOutIndex != utInIndex){
     u = queue[utOutIndex % MAX_THREAD];
-    queue[utOutIndex] = 0;
+    queue[utOutIndex % MAX_THREAD] = 0;
     utOutIndex++;
   }
   else{
@@ -148,11 +149,11 @@ void uthread_exit(){
     putInQueue(thread);
     runningThread->numOfWaiting--;
   }
-   printf(1,"%d done exit\n", runningThread->tid);
   if((nextThread = getNextThread())==0) {
 //     printf(1,"problem!!\n");
       exit();
   }
+  printf(1,"%d done exit\n", runningThread->tid);
   conSwitch();
   POPAL();
   alarm(THREAD_QUANTA); 
@@ -165,7 +166,7 @@ void uthread_exit(){
 
 
 
-int  uthred_self(void){
+int  uthread_self(void){
   return runningThread->tid;
 }
 
@@ -204,7 +205,7 @@ int uthread_join(int tid){
 void uthread_yield(void)
 {
   alarm(THREAD_QUANTA);  
-//   printf(1, "thread %d yields\n", runningThread->tid);
+  printf(1, "thread %d yields\n", runningThread->tid);
   if((nextThread = getNextThread()) == 0){
 //     printf(1, "in if\n");
     return;
@@ -221,6 +222,111 @@ void uthread_yield(void)
 
 }
 
+////////////////////TODO ASS2.3/////////////////
+void initlock(struct semaLock *lk, char *name){
+  lk->locked = 0;
+  lk->name = name;
+}
+
+int holding(struct semaLock *lock){
+  return lock->locked;
+}
+
+void acquire(struct semaLock *lk){
+  
+  if(holding(lk)){
+    printf(1, "PANIC! at acquire");
+  }
+  while(xchg(&lk->locked, 1) != 0);
+}
+
+void release(struct semaLock *lk){
+  if(!holding(lk)){
+    printf(1, "PANIC! at release");
+//     uthread_exit();
+  }
+  xchg(&lk->locked, 0);
+  
+}
+
+void binary_semaphore_init(struct binary_semaphore* semaphore, int value){
+  if ((value < 0) || (value > 1)){
+    return;
+  }
+  
+  semaphore->value = value;
+  semaphore->semaIn = 0;
+  semaphore->semaOut = 0;
+  initlock(semaphore->lock, "semaLock");
+  
+   
+}
+
+struct uthread * getNextSemaThread(struct binary_semaphore* semaphore){
+  struct uthread *u;
+  
+  if(semaphore->semaIn != semaphore->semaOut ){
+    u = semaphore->semaQueue[semaphore->semaOut % MAX_THREAD];
+    semaphore->semaQueue[semaphore->semaOut % MAX_THREAD] = 0;
+    semaphore->semaOut++;
+  }
+  else{
+//     printf(1, "in else\n");
+    u = 0;
+  }
+//   printf(1, "getting %d in queue\n", u->tid);
+  
+  return u;
+  
+}
+void putInSemaQueue(struct binary_semaphore* semaphore, struct uthread * ut){
+  
+  semaphore->semaQueue[semaphore->semaIn % MAX_THREAD] = ut;
+  semaphore->semaIn++;
+
+}
+
+
+void binary_semaphore_down(struct binary_semaphore* semaphore){
+  acquire(semaphore->lock);
+  if(semaphore->value<=0){
+    runningThread->state = T_SLEEPING;
+    
+    putInSemaQueue(semaphore, runningThread);
+    
+    if((nextThread = getNextThread())==0){
+      printf(1, "someone took my cookie\n");
+      release(semaphore->lock);
+      return ;
+    }
+    PUSHAL();
+    release(semaphore->lock);
+    conSwitch();
+    POPAL();
+    alarm(THREAD_QUANTA);
+  }
+  else{
+    semaphore->value--;
+    release(semaphore->lock);
+  }
+}
+
+void binary_semaphore_up(struct binary_semaphore* semaphore){
+  struct uthread* ut;
+  acquire(semaphore->lock);
+  if(semaphore->semaIn == semaphore->semaOut){
+    semaphore->value++;
+    release(semaphore->lock);
+  }
+  else{
+    printf(1, "in sema up\n");
+    ut = getNextSemaThread(semaphore);
+    ut->state = T_RUNNABLE;
+    printf(1, "%d is last in queue\n", ut->tid);
+    putInQueue(ut);
+    release(semaphore->lock);
+  }
+}
 
 
 
