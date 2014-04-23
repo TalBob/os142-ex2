@@ -1,7 +1,37 @@
+// #include "semaphoreLock.h"
+
 #define THREAD_QUANTA 5
+//-------PATCH---------------//
+
+/********************************
+	Macors which inline assembly
+ ********************************/
+// Saves the value of esp to var
+#define STORE_ESP(var) 	asm("movl %%esp, %0;" : "=r" ( var ))
+
+// Loads the contents of var into esp
+#define LOAD_ESP(var) 	asm("movl %0, %%esp;" : : "r" ( var ))
+
+// Saves the value of ebp to var
+#define STORE_EBP(var) 	asm("movl %%ebp, %0;" : "=r" ( var ))
+
+// Loads the contents of var into ebp
+#define LOAD_EBP(var) 	asm("movl %0, %%ebp;" : : "r" ( var ))
+
+// Calls the function func
+#define CALL(addr)		asm("call *%0;" : : "r" ( addr ))
+
+// Pushes the contents of var to the stack
+#define PUSH(var)		asm("movl %0, %%edi; push %%edi;" : : "r" ( var ))
+
+// Push all
+#define PUSHAL() asm("pushal;")
+// Pop all
+#define POPAL() asm("popal;")
 
 /* Possible states of a thread; */
-typedef enum  {T_FREE, T_RUNNING, T_RUNNABLE, T_SLEEPING} uthread_state;
+typedef enum  {T_FREE, T_RUNNING, T_RUNNABLE, T_SLEEPING, T_FRESH} uthread_state;
+
 
 #define STACK_SIZE  4096
 #define MAX_THREAD  64
@@ -14,11 +44,14 @@ struct uthread {
 	int 	       	ebp;        /* current base pointer */
 	char		   *stack;	    /* the thread's stack */
 	uthread_state   state;     	/* running, runnable, sleeping */
+	int		numOfWaiting;
+	struct uthread* waiting[MAX_THREAD]; /*waiting threads */
 };
+
  
-void uthread_init(void);
+int uthread_init(void);
 int  uthread_create(void (*func)(void *), void* value);
 void uthread_exit(void);
 void uthread_yield(void);
-int  uthred_self(void);
-int  uthred_join(int tid);
+int  uthread_self(void);
+int  uthread_join(int tid);
